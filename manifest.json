@@ -2,14 +2,14 @@
     "manifest_version": 3,
     "name": "Things 3 (unofficial), add task extention",
     "description": "This extention allows you to add tasks from your browser.",
-    "version": "1.0",
+    "version": "1.0.1",
     "background": {
         "service_worker": "scripts/background.js"
     },
     "offline_enabled": true,
     "permissions": [
         "activeTab",
-        "tabs"
+        "contextMenus"
     ],
     "icons": {
         "16": "images/icon-16.png",
