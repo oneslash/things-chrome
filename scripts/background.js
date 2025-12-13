@@ -1,23 +1,63 @@
-chrome.action.onClicked.addListener(function (activeTab) {
-    const title = activeTab.title;
-    const url = activeTab.url;
+function buildThingsAddUrl({ title, notes, showQuickEntry = true } = {}) {
+    const params = [];
+    if (title) params.push(`title=${encodeURIComponent(title)}`);
+    if (showQuickEntry) params.push("show-quick-entry=true");
+    if (notes) params.push(`notes=${encodeURIComponent(notes)}`);
+    return `things:///add?${params.join("&")}`;
+}
 
-    var newURL = `things:///add?title=${title}&show-quick-entry=true&notes=Link:${url}`;
-    chrome.tabs.create({ url: newURL });
-});
+function normalizeTitle(rawTitle) {
+    if (!rawTitle) return "";
+    const title = rawTitle.toString().replace(/\s+/g, " ").trim();
+    return title.length > 200 ? `${title.slice(0, 197)}...` : title;
+}
 
-chrome.runtime.onInstalled.addListener(function () {
-    chrome.contextMenus.create({
-        title: "Add to Things",
-        contexts: ["link", "selection"],
-        id: "contextMenu",
+function openThingsQuickEntry({ title, notes } = {}) {
+    const url = buildThingsAddUrl({
+        title: normalizeTitle(title),
+        notes,
+        showQuickEntry: true,
+    });
+    chrome.tabs.create({ url });
+}
+
+chrome.action.onClicked.addListener((activeTab) => {
+    openThingsQuickEntry({
+        title: activeTab?.title,
+        notes: activeTab?.url ? `Link: ${activeTab.url}` : undefined,
     });
 });
 
-chrome.contextMenus.onClicked.addListener(addLinkToThings);
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+            id: "thingsAddLink",
+            title: "Add link to Things",
+            contexts: ["link"],
+        });
 
-function addLinkToThings(info) {
-    var newURL = `things:///add?title=${info.selectionText}&show-quick-entry=true&notes=Link:${info.linkUrl}`;
-    chrome.tabs.create({ url: newURL });
-}
+        chrome.contextMenus.create({
+            id: "thingsAddSelection",
+            title: "Add selection to Things",
+            contexts: ["selection"],
+        });
+    });
+});
 
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "thingsAddLink") {
+        openThingsQuickEntry({
+            title: tab?.title || info.linkUrl,
+            notes: info.linkUrl ? `Link: ${info.linkUrl}` : undefined,
+        });
+        return;
+    }
+
+    if (info.menuItemId === "thingsAddSelection") {
+        const pageUrl = info.pageUrl || tab?.url;
+        openThingsQuickEntry({
+            title: info.selectionText,
+            notes: pageUrl ? `Link: ${pageUrl}` : undefined,
+        });
+    }
+});
